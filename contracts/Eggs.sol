@@ -186,7 +186,7 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
                 callbackGasLimit,
                 1
                 );
-            
+
             requestToInfo[requestId] = request(msg.sender,redeemable,true);
             
         }
