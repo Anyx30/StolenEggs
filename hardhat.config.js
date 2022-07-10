@@ -30,20 +30,20 @@ module.exports = {
       },
     },
   },
-  networks: {
-    harmonytestnet: {
-      url: "https://api.s0.b.hmny.io",
-      accounts: [`${process.env.PRIVATE_KEY}`],
-    },
-    harmony: {
-      url: "https://api.harmony.one",
-      accounts: [`${process.env.PRIVATE_KEY}`],
-    },
-  },
-  etherscan: {
-    apiKey: {
-      harmonyTest: `${process.env.ETHERSCAN_KEY}`,
-      harmony: `${process.env.ETHERSCAN_KEY}`,
-    },
-  },
+  // networks: {
+  //   harmonytestnet: {
+  //     url: "https://api.s0.b.hmny.io",
+  //     accounts: [`${process.env.PRIVATE_KEY}`],
+  //   },
+  //   harmony: {
+  //     url: "https://api.harmony.one",
+  //     accounts: [`${process.env.PRIVATE_KEY}`],
+  //   },
+  // },
+  // etherscan: {
+  //   apiKey: {
+  //     harmonyTest: `${process.env.ETHERSCAN_KEY}`,
+  //     harmony: `${process.env.ETHERSCAN_KEY}`,
+  //   },
+  // },
 };

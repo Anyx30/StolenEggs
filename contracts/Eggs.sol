@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "hardhat/console.sol";
 
 interface Iwhitelistvouchers is IERC721{
     function checkRedeemableEggs(uint256 _tokenId)
@@ -83,9 +84,10 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
     string public baseURI;
     string public imageFileType;
 
-    mapping(uint=>Egg) EggsMetadata;
+    mapping(uint=>Egg) public EggsMetadata;
     mapping(uint=>request) requestToInfo;
     mapping(uint=>uint[]) public requestToEggs;
+    mapping(address => uint[]) public requestMapper;
 
     uint256[5][5] public COLOURRARITY = [[31,81,222,333,444],
                                         [31,81,222,333,444],
@@ -131,8 +133,10 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
     // The default is 3, but you can set this higher.
     uint16 requestConfirmations = 3;
 
-    constructor(address _grav,address _usdc,address _wlvoucher,address _incubators,address _paymentReceiver,uint64 subscriptionId) ERC721("OneVerse Eggs","EGG")
-    VRFConsumerBaseV2(vrfCoordinator){
+    constructor(address _grav,address _usdc,address _wlvoucher,
+        address _incubators,address _paymentReceiver,address _coordinator,
+        uint64 subscriptionId) ERC721("OneVerse Eggs","EGG")
+    VRFConsumerBaseV2(_coordinator){
         Grav = IERC20(_grav);
         USDC = IERC20(_usdc);
         wlVoucher = Iwhitelistvouchers(_wlvoucher);
@@ -141,7 +145,7 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
         Phase1 = true;
         paymentReceiver = _paymentReceiver;
         s_subscriptionId = subscriptionId;
-        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+        COORDINATOR = VRFCoordinatorV2Interface(_coordinator);
     }
 
     modifier notPaused {
@@ -149,7 +153,7 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
         _;
     }
 
-    function mint(uint256[] calldata _whitelistID,bool USDC_Payment) external notPaused{
+    function mint(uint256[] calldata _whitelistID, bool USDC_Payment) external notPaused{
         require(wlPhase,"Neither phase 1 or 2");
         uint length = _whitelistID.length;
 
@@ -166,7 +170,7 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
                 require(PAHSE_1_SUPPLY >= tokenID + redeemable,"Phase limit reached");
                 price = usdcFee[0] * redeemable;
                 require(USDC.transferFrom(msg.sender, paymentReceiver, price),"Price not paid");
-                incubator.giveVoucherIncubator(redeemable,msg.sender);
+                incubator.giveVoucherIncubator(redeemable, msg.sender);
             }else{
                 if(USDC_Payment && USDCAllowed){
                     require(USDC.transferFrom(msg.sender,paymentReceiver,usdcFee[1]*redeemable),"Not paid");
@@ -186,9 +190,8 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
                 callbackGasLimit,
                 1
                 );
-
+            requestMapper[msg.sender].push(requestId);
             requestToInfo[requestId] = request(msg.sender,redeemable,true);
-            
         }
     }
 
@@ -233,19 +236,12 @@ contract Eggs is ERC721Enumerable,Ownable,VRFConsumerBaseV2{
                 callbackGasLimit,
                 1
                 );
-
         requestToInfo[requestId] = request(msg.sender,_mintAmount,true);
-
-        // for(uint k=0;k<_mintAmount;k++){
-        //     tokenID++;
-        //     _safeMint(msg.sender, tokenID);
-        //     EggsMetadata[tokenID] = generateEgg(random, k);
-        // }
     }
 
-    function buyIncubator(uint256[] calldata _tokenIdsEggs) external{
+    function buyIncubator(uint256[] calldata _tokenIdsEggs) external {
         // require(msg.sender == tx.origin, "Contracts not allowed!");
-        require(incubatorSale,"Sale not started");
+        require(incubatorSale, "Sale not started");
         uint length = _tokenIdsEggs.length;
         // uint random = uint(vrf());
         uint requestId = COORDINATOR.requestRandomWords(
